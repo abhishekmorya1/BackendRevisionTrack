@@ -26,9 +26,16 @@ exports.createPost=async(req,res) =>{
 
 exports.getAllPosts=async(req,res)=>{
     try{
+      const posts = await Post.find().populate("comments").exec();
+    // const posts = await Post.find();
 
+      res.json({
+        posts,
+      })
     }
     catch(err){
-        
+        return res.status("400").json({
+            error:"Error while getting all post",
+        });
     }
 }
