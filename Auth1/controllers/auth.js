@@ -1,6 +1,8 @@
 
 const bcrypt = require('bcrypt');
 const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 // signup router holder
 
@@ -52,4 +54,77 @@ exports.signup = async(req,res) => {
 
 // login
 
+exports.login = async(req, res) =>{
+    try{
+    //   data fetch
+       const {email, password} = req.body;
 
+    //    validation on email and password
+        if(!email || !password) {
+            return res.status(400).json({
+                success:false,
+                message:"please fill all the details carefully",
+            });
+        }
+
+        // check user is present or not
+        
+        const user = await User.findOne({email});
+
+        if(!user){
+            return res.status(401).json({
+                success:false,
+                message:"user is not registered",
+            })
+        }
+
+        const payload={
+            email:user.email,
+            id:user._id,
+            role:user.role,
+        }
+
+        // verify password and generate a jwt token
+        if(await bcrypt.compare(password, user.password)){
+        //    if password match login proceed and generate token
+
+              let token = jwt.sign(payload, process.env.JWT_SECRET, 
+                {
+                  expiresIn:"2h",
+                }
+            );
+
+            let userData = user.toObject(); // Converts Mongoose doc to a plain object
+            userData.token = token;
+            userData.password = undefined; // Remove password from response
+
+            const options={
+                 expires: new Date(Date.now() + 3*24*60*60*1000),
+                 httpOnly:true,
+            }
+
+            res.cookie("token", token, options ).status(200).json({
+                success:true,
+                token,
+                user:userData,
+                message:"user logged in successfully",
+            });
+
+        }
+        else{
+            // password do not match
+            return res.status(403).json({
+                success:false,
+                message:"Password Incorrect",
+            })
+        }
+
+    }
+    catch(err){
+         console.error(err);
+         return res.status(500).json({
+            success:false,
+            message:"Login Failure",
+         })
+    }
+}
